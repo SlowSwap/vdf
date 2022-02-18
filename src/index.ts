@@ -13,7 +13,7 @@ export function generateVdf(opts: {
     knownQtyIn: BigNumber;
     knownQtyOut: BigNumber;
     blockHash: string;
-    blockNumber: string;
+    blockNumber: number;
 }): string {
     const seed = generateSeed(opts.origin, opts.path, opts.knownQtyIn, opts.knownQtyOut);
     const x = generateX(opts.n, seed, opts.blockHash);
