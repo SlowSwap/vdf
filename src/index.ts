@@ -136,6 +136,6 @@ export function isValidVdf(opts: {
     const seed = generateSeed(opts.origin, opts.path, opts.knownQtyIn, opts.knownQtyOut);
     const x = generateX(opts.n, seed, opts.blockHash);
     const c = generateChallenge({ x, y, n: opts.n, t: opts.t });
-    const y_ = pi.pow(c, opts.n).times(x.pow(new BigNumber(2).pow(opts.t, c))).mod(opts.n);
+    const y_ = pi.pow(c, opts.n).times(x.pow(new BigNumber(2).pow(opts.t, c), opts.n)).mod(opts.n);
     return y.eq(y_);
 }

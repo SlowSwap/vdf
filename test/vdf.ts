@@ -15,7 +15,7 @@ describe('vdf tests', () => {
 
     describe('generateVdf()', () => {
         it('works', () => {
-            const vdf = generateVdf({
+            const opts = {
                 n: N,
                 t: T,
                 blockHash,
@@ -24,9 +24,10 @@ describe('vdf tests', () => {
                 knownQtyOut,
                 origin,
                 path,
-                onProgress: n => console.log(n),
-            });
+            }
+            const vdf = generateVdf(opts);
             expect(vdf).to.length(96 * 2 + 2);
+            expect(isValidVdf({ ...opts, proof: vdf })).to.be.true;
         });
     });
 });
