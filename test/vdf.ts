@@ -1,7 +1,7 @@
 import BigNumber from 'bignumber.js';
 import chai, { expect } from 'chai';
 import crypto from 'crypto';
-import { generateVdf } from '../src';
+import { generateVdf, isValidVdf } from '../src';
 
 describe('vdf tests', () => {
     const N = new BigNumber('44771746775035800231893057667067514385523709770528832291415080542575843241867');
@@ -13,18 +13,21 @@ describe('vdf tests', () => {
     const knownQtyOut = randomQuantity();
     const path = [...new Array(3)].map(i => randomHash(20));
 
-    it('generateVdf()', () => {
-        const vdf = generateVdf({
-            n: N,
-            t: T,
-            blockHash,
-            blockNumber,
-            knownQtyIn,
-            knownQtyOut,
-            origin,
-            path,
+    describe('generateVdf()', () => {
+        it('works', () => {
+            const vdf = generateVdf({
+                n: N,
+                t: T,
+                blockHash,
+                blockNumber,
+                knownQtyIn,
+                knownQtyOut,
+                origin,
+                path,
+                onProgress: n => console.log(n),
+            });
+            expect(vdf).to.length(96 * 2 + 2);
         });
-        expect(vdf).to.length(96 * 2 + 2);
     });
 });
 

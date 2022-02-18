@@ -20,12 +20,12 @@ export function generateVdf(opts: {
         if (!opts.onProgress) {
             return () => undefined;
         }
-        let lastUpdateT = start;
+        let lastUpdateT = 0;
         let total = 2 * opts.t;
         return (t: number) => {
-            if (t === start || t === opts.t - 1 || t - lastUpdateT > freq) {
+            if (t === 0 || t === opts.t - 1 || t - lastUpdateT > freq) {
                 lastUpdateT = t;
-                opts.onProgress!((t + 1) / total);
+                opts.onProgress!((t + 1 + start) / total);
             }
         };
     };
@@ -85,12 +85,14 @@ export function evaluateVdf(
     x: BigNumber,
     N: BigNumber,
     T: number,
-    onProgress: (t: number) => void,
+    onProgress?: (t: number) => void,
 ): BigNumber {
     let y = x;
     for (let i = 0; i < T; ++i) {
         y = y.pow(2).modulo(N);
-        onProgress(i);
+        if (onProgress) {
+            onProgress(i);
+        }
     }
     return y;
 }
@@ -100,7 +102,7 @@ export function generateProof(
     c: BigNumber,
     N: BigNumber,
     T: number,
-    onProgress: (t: number) => void,
+    onProgress?: (t: number) => void,
 ): BigNumber {
     let pi = new BigNumber(1);
     let r = new BigNumber(1);
@@ -109,7 +111,31 @@ export function generateProof(
         const bit = r2.div(c).integerValue(BigNumber.ROUND_DOWN);
         r = r2.modulo(c);
         pi = pi.pow(2).times(x.pow(bit)).modulo(N);
-        onProgress(i);
+        if (onProgress) {
+            onProgress(i);
+        }
     }
     return pi;
+}
+
+export function isValidVdf(opts: {
+    n: BigNumber;
+    t: number;
+    origin: string;
+    path: string[];
+    knownQtyIn: BigNumber;
+    knownQtyOut: BigNumber;
+    blockHash: string;
+    proof: string;
+}): boolean {
+    const proofBuf = ethjs.toBuffer(opts.proof);
+    const pi = new BigNumber(ethjs.bufferToHex(proofBuf.slice(0, 32)));
+    const y = new BigNumber(ethjs.bufferToHex(proofBuf.slice(32, 64)));
+    // no way to verify this
+    // const blockNumber = new BigNumber(ethjs.bufferToHex(proofBuf.slice(32, 64)));
+    const seed = generateSeed(opts.origin, opts.path, opts.knownQtyIn, opts.knownQtyOut);
+    const x = generateX(opts.n, seed, opts.blockHash);
+    const c = generateChallenge({ x, y, n: opts.n, t: opts.t });
+    const y_ = pi.pow(c, opts.n).times(x.pow(new BigNumber(2).pow(opts.t, c))).mod(opts.n);
+    return y.eq(y_);
 }
