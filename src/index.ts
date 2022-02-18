@@ -78,9 +78,9 @@ export function generateSeed(
     knownQtyOut: Numberish,
 ): string {
     return ethjs.bufferToHex(ethjs.keccak256(Buffer.concat([
-        ethjs.setLengthLeft(ethjs.toBuffer(origin), 20),
+        ethjs.setLengthLeft(ethjs.toBuffer(origin), 32),
         ethjs.setLengthLeft(numberToBuffer(path.length), 32),
-        ...path.map(p => ethjs.setLengthLeft(ethjs.toBuffer(p), 20)),
+        ...path.map(p => ethjs.setLengthLeft(ethjs.toBuffer(p), 32)),
         ethjs.setLengthLeft(numberToBuffer(knownQtyIn), 32),
         ethjs.setLengthLeft(numberToBuffer(knownQtyOut), 32),
     ])));
