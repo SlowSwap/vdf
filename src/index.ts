@@ -2,7 +2,7 @@ import * as ethjs from 'ethereumjs-util';
 import BigNumber from 'bignumber.js';
 
 function numberToBuffer(n: BigNumber | string | number): Buffer {
-    return ethjs.toBuffer(new ethjs.BN(BigNumber.isBigNumber(n) ? n.toString(10) : n));
+    return ethjs.toBuffer(new ethjs.BN(n.toString(10)));
 }
 
 export function generateVdf(opts: {
