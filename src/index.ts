@@ -5,6 +5,46 @@ function numberToBuffer(n: BigNumber | string | number): Buffer {
     return ethjs.toBuffer(new ethjs.BN(BigNumber.isBigNumber(n) ? n.toString(10) : n));
 }
 
+export function generateVdf(opts: {
+    n: BigNumber;
+    t: number;
+    origin: string;
+    path: string[];
+    knownQtyIn: BigNumber;
+    knownQtyOut: BigNumber;
+    blockHash: string;
+    blockNumber: string;
+}): string {
+    const seed = generateSeed(opts.origin, opts.path, opts.knownQtyIn, opts.knownQtyOut);
+    const x = generateX(opts.n, seed, opts.blockHash);
+    const y = evaluateVdf(x, opts.n, opts.t);
+    const c = generateChallenge({ x, y, n: opts.n, t: opts.t });
+    const pi = generateProof(x, c, opts.n, opts.t);
+    return ethjs.bufferToHex(Buffer.concat([
+        ethjs.setLengthLeft(numberToBuffer(pi), 32),
+        ethjs.setLengthLeft(numberToBuffer(y), 32),
+        ethjs.setLengthLeft(numberToBuffer(opts.blockNumber), 32),
+    ]));
+}
+
+export function generateChallenge(opts: {
+        x: BigNumber;
+        y: BigNumber;
+        n: BigNumber;
+        t: number;
+    }): BigNumber {
+    let n = new BigNumber(ethjs.bufferToHex(ethjs.keccak256(Buffer.concat([
+        ethjs.setLengthLeft(numberToBuffer(opts.x), 32),
+        ethjs.setLengthLeft(numberToBuffer(opts.y), 32),
+        ethjs.setLengthLeft(numberToBuffer(opts.n), 32),
+        ethjs.setLengthLeft(numberToBuffer(opts.t), 32),
+    ]))));
+    if (n.mod(2).isZero()) {
+        n = n.plus(1);
+    }
+    return n;
+}
+
 export function generateSeed(
     origin: string,
     path: string[],
