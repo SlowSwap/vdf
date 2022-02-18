@@ -14,12 +14,26 @@ export function generateVdf(opts: {
     knownQtyOut: BigNumber;
     blockHash: string;
     blockNumber: number;
+    onProgress?: (progress: number) => void;
 }): string {
+    const createProgressCallback = (start: number = 0, freq: number = 100) => {
+        if (!opts.onProgress) {
+            return () => undefined;
+        }
+        let lastUpdateT = start;
+        let total = 2 * opts.t;
+        return (t: number) => {
+            if (t === start || t === opts.t - 1 || t - lastUpdateT > freq) {
+                lastUpdateT = t;
+                opts.onProgress!((t + 1) / total);
+            }
+        };
+    };
     const seed = generateSeed(opts.origin, opts.path, opts.knownQtyIn, opts.knownQtyOut);
     const x = generateX(opts.n, seed, opts.blockHash);
-    const y = evaluateVdf(x, opts.n, opts.t);
+    const y = evaluateVdf(x, opts.n, opts.t, createProgressCallback());
     const c = generateChallenge({ x, y, n: opts.n, t: opts.t });
-    const pi = generateProof(x, c, opts.n, opts.t);
+    const pi = generateProof(x, c, opts.n, opts.t, createProgressCallback(opts.t));
     return ethjs.bufferToHex(Buffer.concat([
         ethjs.setLengthLeft(numberToBuffer(pi), 32),
         ethjs.setLengthLeft(numberToBuffer(y), 32),
@@ -67,10 +81,16 @@ export function generateX(n: BigNumber, seed: string, blockHash: string): BigNum
     ])))).mod(n);
 }
 
-export function evaluateVdf(x: BigNumber, N: BigNumber, T: number): BigNumber {
+export function evaluateVdf(
+    x: BigNumber,
+    N: BigNumber,
+    T: number,
+    onProgress: (t: number) => void,
+): BigNumber {
     let y = x;
     for (let i = 0; i < T; ++i) {
         y = y.pow(2).modulo(N);
+        onProgress(i);
     }
     return y;
 }
@@ -80,6 +100,7 @@ export function generateProof(
     c: BigNumber,
     N: BigNumber,
     T: number,
+    onProgress: (t: number) => void,
 ): BigNumber {
     let pi = new BigNumber(1);
     let r = new BigNumber(1);
@@ -88,6 +109,7 @@ export function generateProof(
         const bit = r2.div(c).integerValue(BigNumber.ROUND_DOWN);
         r = r2.modulo(c);
         pi = pi.pow(2).times(x.pow(bit)).modulo(N);
+        onProgress(i);
     }
     return pi;
 }

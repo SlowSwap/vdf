@@ -24,6 +24,7 @@ describe('vdf tests', () => {
             origin,
             path,
         });
+        expect(vdf).to.length(96 * 2 + 2);
     });
 });
 
@@ -33,5 +34,5 @@ function randomHash(len: number = 32): string {
 
 function randomQuantity(decimals: number = 18): BigNumber {
     const n = new BigNumber(10).pow(decimals);
-    return new BigNumber('0x' + crypto.randomBytes(32)).mod(n);
+    return new BigNumber('0x' + crypto.randomBytes(32).toString('hex')).mod(n);
 }
