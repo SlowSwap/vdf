@@ -1,7 +1,7 @@
 {
     "name": "@slowswap/vdf",
-    "version": "1.0.4",
-    "main": "lib/index.js",
+    "version": "1.0.5",
+    "main": "lib/src/index.js",
     "author": "Lawrence Forman <me@merklejerk.com>",
     "license": "Apache-2.0",
     "private": false,
