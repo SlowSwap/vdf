@@ -1,17 +1,32 @@
 import * as ethjs from 'ethereumjs-util';
 import BigNumber from 'bignumber.js';
 
-function numberToBuffer(n: BigNumber | string | number): Buffer {
-    return ethjs.toBuffer(new ethjs.BN(n.toString(10)));
+type Numberish = string | number | bigint | { toString(b?: number): string; };
+
+function toBigInt(n: Numberish): bigint {
+    if (typeof n === 'bigint') {
+        return n;
+    }
+    if (typeof n === 'number') {
+        return BigInt(n);
+    }
+    if (typeof n === 'string') {
+        return BigInt(n);
+    }
+    return BigInt(n.toString(10));
+}
+
+function numberToBuffer(n: Numberish): Buffer {
+    return ethjs.toBuffer(new ethjs.BN(toBigInt(n).toString(10)));
 }
 
 export function generateVdf(opts: {
-    n: BigNumber;
+    n: Numberish;
     t: number;
     origin: string;
     path: string[];
-    knownQtyIn: BigNumber;
-    knownQtyOut: BigNumber;
+    knownQtyIn: Numberish;
+    knownQtyOut: Numberish;
     blockHash: string;
     blockNumber: number;
     onProgress?: (progress: number) => void;
@@ -42,54 +57,52 @@ export function generateVdf(opts: {
 }
 
 export function generateChallenge(opts: {
-        x: BigNumber;
-        y: BigNumber;
-        n: BigNumber;
+        x: Numberish;
+        y: Numberish;
+        n: Numberish;
         t: number;
-    }): BigNumber {
-    let n = new BigNumber(ethjs.bufferToHex(ethjs.keccak256(Buffer.concat([
+    }): bigint {
+    let n = BigInt(ethjs.bufferToHex(ethjs.keccak256(Buffer.concat([
         ethjs.setLengthLeft(numberToBuffer(opts.x), 32),
         ethjs.setLengthLeft(numberToBuffer(opts.y), 32),
         ethjs.setLengthLeft(numberToBuffer(opts.n), 32),
         ethjs.setLengthLeft(numberToBuffer(opts.t), 32),
-    ]))));
-    if (n.mod(2).isZero()) {
-        n = n.plus(1);
-    }
+    ])))) | 1n;
     return n;
 }
 
 export function generateSeed(
     origin: string,
     path: string[],
-    knownQtyIn: BigNumber,
-    knownQtyOut: BigNumber,
+    knownQtyIn: Numberish,
+    knownQtyOut: Numberish,
 ): string {
     return ethjs.bufferToHex(ethjs.keccak256(Buffer.concat([
         ethjs.setLengthLeft(ethjs.toBuffer(origin), 20),
-        ethjs.setLengthLeft(ethjs.toBuffer(path.length), 32),
+        ethjs.setLengthLeft(numberToBuffer(path.length), 32),
         ...path.map(p => ethjs.setLengthLeft(ethjs.toBuffer(p), 20)),
         ethjs.setLengthLeft(numberToBuffer(knownQtyIn), 32),
         ethjs.setLengthLeft(numberToBuffer(knownQtyOut), 32),
     ])));
 }
 
-export function generateX(n: BigNumber, seed: string, blockHash: string): BigNumber {
-    return new BigNumber(ethjs.bufferToHex(ethjs.keccak256(Buffer.concat([
+export function generateX(n: Numberish, seed: string, blockHash: string): bigint {
+    return BigInt(ethjs.bufferToHex(ethjs.keccak256(Buffer.concat([
         ethjs.setLengthLeft(ethjs.toBuffer(seed), 32),
         ethjs.setLengthLeft(ethjs.toBuffer(blockHash), 32),
-    ])))).mod(n);
+    ])))) % toBigInt(n);
 }
 
 export function evaluateVdf(
-    x: BigNumber,
-    N: BigNumber,
+    x: Numberish,
+    N: Numberish,
     T: number,
     onProgress?: (t: number) => void,
-): BigNumber {
-    let y = x;
+): bigint {
+    let y = toBigInt(x);
+    const N_ = toBigInt(N);
     for (let i = 0; i < T; ++i) {
-        y = y.pow(2).modulo(N);
+        y = (y ** 2n) % N_;
         if (onProgress) {
             onProgress(i);
         }
@@ -98,19 +111,22 @@ export function evaluateVdf(
 }
 
 export function generateProof(
-    x: BigNumber,
-    c: BigNumber,
-    N: BigNumber,
+    x: Numberish,
+    c: Numberish,
+    N: Numberish,
     T: number,
     onProgress?: (t: number) => void,
-): BigNumber {
-    let pi = new BigNumber(1);
-    let r = new BigNumber(1);
+): bigint {
+    const x_ = toBigInt(x);
+    const c_ = toBigInt(c);
+    const N_ = toBigInt(N);
+    let pi = BigInt(1);
+    let r = BigInt(1);
     for (let i = 0; i < T; ++i) {
-        const r2 = r.times(2);
-        const bit = r2.div(c).integerValue(BigNumber.ROUND_DOWN);
-        r = r2.modulo(c);
-        pi = pi.pow(2).times(x.pow(bit)).modulo(N);
+        const r2 = r * 2n;
+        const bit = r2 / c_;
+        r = r2 % c_;
+        pi = ((pi * pi) * (x_ ** bit)) % N_;
         if (onProgress) {
             onProgress(i);
         }
@@ -119,23 +135,26 @@ export function generateProof(
 }
 
 export function isValidVdf(opts: {
-    n: BigNumber;
+    n: Numberish;
     t: number;
     origin: string;
     path: string[];
-    knownQtyIn: BigNumber;
-    knownQtyOut: BigNumber;
+    knownQtyIn: Numberish;
+    knownQtyOut: Numberish;
     blockHash: string;
     proof: string;
 }): boolean {
+    const n = new BigNumber(opts.n.toString(10));
     const proofBuf = ethjs.toBuffer(opts.proof);
     const pi = new BigNumber(ethjs.bufferToHex(proofBuf.slice(0, 32)));
-    const y = new BigNumber(ethjs.bufferToHex(proofBuf.slice(32, 64)));
+    const y = BigInt(ethjs.bufferToHex(proofBuf.slice(32, 64)));
     // no way to verify this
     // const blockNumber = new BigNumber(ethjs.bufferToHex(proofBuf.slice(32, 64)));
     const seed = generateSeed(opts.origin, opts.path, opts.knownQtyIn, opts.knownQtyOut);
     const x = generateX(opts.n, seed, opts.blockHash);
-    const c = generateChallenge({ x, y, n: opts.n, t: opts.t });
-    const y_ = pi.pow(c, opts.n).times(x.pow(new BigNumber(2).pow(opts.t, c), opts.n)).mod(opts.n);
-    return y.eq(y_);
+    // BigInt gives up with p ** c so use BigNumber here.
+    const c = new BigNumber(generateChallenge({ x, y, n: opts.n, t: opts.t }).toString(10));
+    const x_ = new BigNumber(x.toString(10));
+    const y_ = pi.pow(c, n).times(x_.pow(new BigNumber(2).pow(opts.t, c), n)).mod(n);
+    return y == BigInt(y_.toString(10));
 }
