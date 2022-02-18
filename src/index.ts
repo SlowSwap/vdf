@@ -68,7 +68,7 @@ export function generateX(n: BigNumber, seed: string, blockHash: string): BigNum
 }
 
 export function evaluateVdf(x: BigNumber, N: BigNumber, T: number): BigNumber {
-    let y = new BigNumber(x);
+    let y = x;
     for (let i = 0; i < T; ++i) {
         y = y.pow(2).modulo(N);
     }

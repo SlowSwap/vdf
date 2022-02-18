@@ -6,7 +6,8 @@
     "license": "Apache-2.0",
     "private": false,
     "scripts": {
-        "build": "tsc -b"
+        "build": "tsc -b",
+        "test": "tsc -b && mocha lib/test/**.js -t 10000"
     },
     "dependencies": {
         "bignumber.js": "^9.0.2",
